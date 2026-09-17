@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: MVP Pastoral da Juventude - RES-003 Recuperar senha
+  version: 1.1.0
+paths:
+  /api/v1/autenticacao/recuperar-senha:
+    post:
+      operationId: recuperarSenha
+      summary: Recuperar senha
+      description: >
+        Valida nome, e-mail, data de nascimento e nome da paróquia. Em caso
+        de correspondência gera senha temporária válida por 15 minutos,
+        persiste somente seu hash, invalida sessão existente e devolve a
+        senha temporária uma única vez.
+      parameters:
+        - in: header
+          name: X-Correlation-Id
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        x-max-body-size: 1048576
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecuperarSenhaRequest'
+      responses:
+        '200':
+          description: Recuperação criada
+          headers:
+            X-Correlation-Id:
+              required: true
+              schema:
+                type: string
+                format: uuid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecuperarSenhaResponse'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '403':
+          description: Usuário inativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '404':
+          description: Dados de recuperação não localizados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '409':
+          description: Recuperação já em andamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '413':
+          description: Request body excede o limite global de 1 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '429':
+          description: Limite de tentativas excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '500':
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '503':
+          description: Serviço indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+components:
+  schemas:
+    RecuperarSenhaRequest:
+      type: object
+      additionalProperties: false
+      required: [nome, email, dataNascimento, nomeParoquia]
+      properties:
+        nome:
+          type: string
+          minLength: 1
+          maxLength: 500
+        email:
+          type: string
+          format: email
+          maxLength: 500
+        dataNascimento:
+          type: string
+          format: date
+        nomeParoquia:
+          type: string
+          minLength: 1
+          maxLength: 500
+    RecuperarSenhaResponse:
+      type: object
+      additionalProperties: false
+      required: [senhaTemporaria, expiraEm, trocaSenhaObrigatoria]
+      properties:
+        senhaTemporaria:
+          type: string
+          description: Retornada uma única vez; não deve ser persistida em texto puro.
+        expiraEm:
+          type: string
+          format: date-time
+        trocaSenhaObrigatoria:
+          type: boolean
+          const: true
+    ErroCampo:
+      type: object
+      additionalProperties: false
+      required: [campo, codigo, mensagem]
+      properties:
+        campo:
+          type: string
+        codigo:
+          type: string
+        mensagem:
+          type: string
+    ErroResponse:
+      type: object
+      additionalProperties: false
+      required: [timestamp, status, codigo, titulo, mensagem, endpoint, correlationId]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        codigo:
+          type: string
+        titulo:
+          type: string
+        mensagem:
+          type: string
+        endpoint:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        erros:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErroCampo'

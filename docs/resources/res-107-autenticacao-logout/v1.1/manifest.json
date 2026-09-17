@@ -1,0 +1,18 @@
+{
+  "resource": "RES-107",
+  "name": "Logout",
+  "version": "1.1",
+  "endpoint": "POST /api/v1/autenticacao/logout",
+  "artifacts": [
+    "01-documentacao-geral-resource.md",
+    "01-documentacao-geral-resource.docx",
+    "02-integracao-frontend.md",
+    "02-integracao-frontend.docx",
+    "03-casos-de-uso-e-fluxos.md",
+    "03-casos-de-uso-e-fluxos.docx",
+    "04-casos-de-teste.md",
+    "04-casos-de-teste.docx",
+    "openapi.yaml"
+  ],
+  "feature_files_generated": false
+}
