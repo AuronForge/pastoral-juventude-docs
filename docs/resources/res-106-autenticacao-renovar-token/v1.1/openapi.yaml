@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: MVP Pastoral da Juventude - RES-106 Renovar Access Token
+  version: 1.1.0
+paths:
+  /api/v1/autenticacao/renovar-token:
+    post:
+      operationId: renovarAccessToken
+      summary: Renovar Access Token
+      description: >
+        Renova o Access Token usando exclusivamente o cookie HttpOnly
+        refresh_token. Rotaciona o Refresh Token sem estender a duração
+        absoluta da sessão.
+      parameters:
+        - in: header
+          name: X-Correlation-Id
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Token renovado
+          headers:
+            X-Correlation-Id:
+              required: true
+              schema:
+                type: string
+                format: uuid
+            Set-Cookie:
+              required: true
+              description: Novo cookie refresh_token após rotação.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenovarTokenResponse'
+        '400':
+          description: Cookie ausente ou request inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '401':
+          description: Refresh Token, sessão ou expiração inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '403':
+          description: Usuário bloqueado/inativo ou origem rejeitada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '409':
+          description: Sessão substituída por novo login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '500':
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '503':
+          description: Serviço indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+components:
+  schemas:
+    RenovarTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          minimum: 1
+          maximum: 900
+          description: Validade efetiva do Access Token em segundos.
+    ErroCampo:
+      type: object
+      additionalProperties: false
+      required: [campo, codigo, mensagem]
+      properties:
+        campo:
+          type: string
+        codigo:
+          type: string
+        mensagem:
+          type: string
+    ErroResponse:
+      type: object
+      additionalProperties: false
+      required: [timestamp, status, codigo, titulo, mensagem, endpoint, correlationId]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        codigo:
+          type: string
+        titulo:
+          type: string
+        mensagem:
+          type: string
+        endpoint:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        erros:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErroCampo'

@@ -1,0 +1,96 @@
+openapi: 3.1.0
+info:
+  title: MVP Pastoral da Juventude - RES-107 Logout
+  version: 1.1.0
+paths:
+  /api/v1/autenticacao/logout:
+    post:
+      operationId: logout
+      summary: Encerrar sessão
+      description: >
+        Invalida a sessão ativa com motivo LOGOUT, expira o cookie refresh_token
+        e retorna 204. A operação é funcionalmente idempotente: chamadas repetidas
+        também retornam 204 quando a sessão já estiver encerrada.
+      parameters:
+        - in: header
+          name: X-Correlation-Id
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Logout concluído ou já concluído anteriormente
+          headers:
+            X-Correlation-Id:
+              required: true
+              schema:
+                type: string
+                format: uuid
+            Set-Cookie:
+              required: true
+              description: Expiração do cookie refresh_token.
+              schema:
+                type: string
+        '400':
+          description: Request inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '403':
+          description: Origem ou acesso rejeitado pela política de segurança
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '500':
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '503':
+          description: Serviço indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+components:
+  schemas:
+    ErroCampo:
+      type: object
+      additionalProperties: false
+      required: [campo, codigo, mensagem]
+      properties:
+        campo:
+          type: string
+        codigo:
+          type: string
+        mensagem:
+          type: string
+    ErroResponse:
+      type: object
+      additionalProperties: false
+      required: [timestamp, status, codigo, titulo, mensagem, endpoint, correlationId]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        codigo:
+          type: string
+        titulo:
+          type: string
+        mensagem:
+          type: string
+        endpoint:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        erros:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErroCampo'

@@ -1,0 +1,170 @@
+openapi: 3.1.0
+info:
+  title: MVP Pastoral da Juventude - RES-001 Autenticar usuário
+  version: 1.1.0
+paths:
+  /api/v1/autenticacao/login:
+    post:
+      operationId: autenticarUsuario
+      summary: Autenticar usuário
+      description: >
+        Autentica por e-mail e senha. Em login normal cria uma única sessão ativa,
+        retorna Access Token e envia Refresh Token em cookie HttpOnly. Quando
+        trocaSenhaObrigatoria=true e a senha temporária é válida, retorna somente
+        token restrito TROCA_SENHA.
+      parameters:
+        - in: header
+          name: X-Correlation-Id
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        x-max-body-size: 1048576
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Autenticação concluída
+          headers:
+            X-Correlation-Id:
+              required: true
+              schema:
+                type: string
+                format: uuid
+            Set-Cookie:
+              required: false
+              description: Presente somente no login normal para o cookie refresh_token.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/LoginNormalResponse'
+                  - $ref: '#/components/schemas/TrocaSenhaResponse'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '401':
+          description: Credenciais ou senha temporária inválidas/expiradas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '403':
+          description: Usuário bloqueado ou inativo após validação da credencial
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '413':
+          description: Request body excede o limite global de 1 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '429':
+          description: Limite de tentativas excedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '500':
+          description: Erro interno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+        '503':
+          description: Serviço indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErroResponse'
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, senha]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 500
+        senha:
+          type: string
+          minLength: 1
+          maxLength: 128
+    LoginNormalResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          const: Bearer
+        expiresIn:
+          type: integer
+          const: 900
+    TrocaSenhaResponse:
+      type: object
+      additionalProperties: false
+      required: [tokenTrocaSenha, tokenType, expiresIn, trocaSenhaObrigatoria]
+      properties:
+        tokenTrocaSenha:
+          type: string
+        tokenType:
+          type: string
+          const: TROCA_SENHA
+        expiresIn:
+          type: integer
+          const: 900
+        trocaSenhaObrigatoria:
+          type: boolean
+          const: true
+    ErroCampo:
+      type: object
+      additionalProperties: false
+      required: [campo, codigo, mensagem]
+      properties:
+        campo:
+          type: string
+        codigo:
+          type: string
+        mensagem:
+          type: string
+    ErroResponse:
+      type: object
+      additionalProperties: false
+      required: [timestamp, status, codigo, titulo, mensagem, endpoint, correlationId]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        codigo:
+          type: string
+        titulo:
+          type: string
+        mensagem:
+          type: string
+        endpoint:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+        erros:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErroCampo'
