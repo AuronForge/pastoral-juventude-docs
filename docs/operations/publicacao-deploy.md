@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.1 · Atualizado em: 01/10/2026.
+Versão: 1.2 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -14,8 +14,8 @@ Os PRs [backend #9](https://github.com/AuronForge/pastoral-juventude-backend/pul
 [infra #2](https://github.com/AuronForge/pastoral-juventude-infra/pull/2) foram
 mergeados. O primeiro deploy real no Ubuntu foi concluído em 01/10/2026,
 com PostgreSQL, Redis, backend, frontend e Traefik prontos e três smoke tests
-aprovados. A evidência e as revisões estão registradas abaixo. A ativação do
-dispatch automático nas aplicações é uma etapa separada.
+aprovados. A evidência e as revisões estão registradas abaixo. O dispatch automático de backend e frontend também foi validado em
+01/10/2026, nas execuções registradas abaixo.
 
 | Ambiente        | Branch      | Comportamento nesta entrega                                             |
 | --------------- | ----------- | ----------------------------------------------------------------------- |
@@ -239,9 +239,34 @@ Ocorrências resolvidas durante o bootstrap:
   O serviço Aquatrack permaneceu em execução.
 
 As revisões acima documentam esse deploy, não os HEADs de entregas futuras.
-O resultado comprova a infraestrutura e o smoke atual; login funcional,
-observabilidade completa e deploy automático ainda exigem suas validações
-específicas.
+O resultado comprova a infraestrutura e o smoke atual. Login funcional e
+observabilidade completa ainda exigem suas validações específicas.
+
+## Evidência do deploy automático — 01/10/2026
+
+Após configurar `INFRA_DISPATCH_TOKEN` e `DEV_AUTO_DEPLOY=true` no backend
+e frontend, foram reexecutadas CIs de push dos HEADs atuais da `develop`.
+Elas passaram e geraram novas publicações. Os passos
+`Request development deployment` concluíram com sucesso nos dois repositórios;
+as implantações abaixo foram criadas por esse dispatch, sem solicitação manual
+na infra.
+
+| Componente | Publicação aprovada | Deploy automático aprovado | Smoke E2E |
+| --- | --- | --- | --- |
+| Frontend | [36899732586](https://github.com/AuronForge/pastoral-juventude-frontend/actions/runs/36899732586) | [36899770315](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36899770315) | 3 testes aprovados |
+| Backend/API e migrations | [36899777863](https://github.com/AuronForge/pastoral-juventude-backend/actions/runs/36899777863) | [36899985533](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36899985533) | 3 testes aprovados |
+
+Frontend concluído às 14:30 BRT e backend às 14:33 BRT. Os diretórios de
+release/relatórios usam respectivamente os identificadores
+`36899770315-20261001T172955Z` e `36899985533-20261001T173141Z`.
+Os artefatos foram publicados nas duas execuções. As revisões de aplicação,
+infra e E2E são as mesmas do primeiro deploy registrado acima: este teste
+validou a ativação e o encadeamento automático, sem alterar código funcional.
+
+O fluxo operacional está habilitado: merge em `develop` → CI aprovada →
+publicação GHCR → dispatch → validação → Ubuntu → backup/migrations →
+healthchecks → smoke E2E. O sucesso da publicação não substitui a conferência
+do deploy. A suíte atual não comprova login funcional ou promoção de produção.
 
 ## Execução no Ubuntu e evidências
 
