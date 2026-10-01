@@ -72,6 +72,12 @@ paths:
                 $ref: '#/components/schemas/ErroResponse'
         '429':
           description: Limite de tentativas excedido
+          headers:
+            Retry-After:
+              description: Segundos restantes do bloqueio obtidos do TTL do Redis
+              schema:
+                type: integer
+                minimum: 1
           content:
             application/json:
               schema:
