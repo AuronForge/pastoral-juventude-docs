@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.9 · Atualizado em: 01/10/2026.
+Versão: 1.10 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -278,12 +278,17 @@ na [CI 36935274188](https://github.com/AuronForge/pastoral-juventude-infra/actio
 a revisão corrigida passou na
 [CI 36935635798](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36935635798).
 
-Próximas comprovações operacionais: executar o diagnóstico no Ubuntu, conferir
-dockerHost e estado individual dos serviços, testar o health público, executar
-novo deploy pelo fluxo automático já no Desktop e verificar acesso após
-reiniciar Desktop/Ubuntu. Os logs completos da tentativa final, a pasta exata
-de evidências e o relatório de recursos ainda não foram fornecidos nesta
-validação. Preservar backups e os volumes de origem durante essas verificações.
+O diagnóstico fornecido pelo operador, com timestamp `2026-10-01T22:50:10.330483+00:00`,
+confirma `dockerHost: unix:///home/eduardo-marques-server/.docker/desktop/docker.sock`,
+os cinco containers `running` e `healthy`, sem reinícios ou OOM, e readiness HTTP
+200 com banco e cache `up`. O Ubuntu reportou cerca de 16 GB de memória total;
+as estatísticas dos containers usaram o limite de aproximadamente 3,57 GiB da VM.
+
+Próximas comprovações operacionais: testar o novo health público detalhado, executar
+novo deploy pelo fluxo automático no Desktop e verificar acesso após reiniciar
+Desktop/Ubuntu. Os logs completos da tentativa final e a pasta exata de evidências
+ainda não foram fornecidos. Preservar backups e os volumes de origem durante essas
+verificações.
 
 ## Configuração e permissões
 
@@ -511,3 +516,70 @@ explica o fluxo integrado; o runbook mantém comandos específicos do host.
 Mudanças em gates, triggers, imagens, permissões, bootstrap ou rollback devem
 atualizar a documentação do repositório responsável e este guia no mesmo conjunto
 de entregas. Registrar separadamente a evidência do primeiro deploy real.
+
+
+## Health público com métricas de recursos
+
+Implementação proposta no [Infra #12](https://github.com/AuronForge/pastoral-juventude-infra/pull/12).
+As instruções abaixo se aplicam após merge e deploy dessa revisão.
+
+
+O health público nas portas web e API, inclusive pelo túnel de backend, retorna
+o relatório de `scripts/health-development.py`: `timestamp`, `dockerHost`,
+`host`, `containers`, `readiness`, `errors` e `status`. O caminho correto é
+`/api/v1/health`. O frontend não participa desta rota.
+
+A coleta roda no Ubuntu como `pastoral-runner`. O serviço `health-report` serve
+a última amostra publicada no volume `pastoral-dev_health-report-data`, montado
+somente para leitura. Backend e serviço HTTP não recebem o socket Docker.
+O volume pertence ao daemon selecionado em `/opt/pastoral/dev/docker-host`;
+a publicação funciona tanto no Engine quanto na VM do Desktop, sem bind mounts.
+
+Após o primeiro deploy desta versão, instalar uma vez no Ubuntu:
+
+```bash
+sudo bash /opt/pastoral/dev/current/scripts/install-health-reporter.sh
+systemctl status pastoral-health-report.timer --no-pager
+sudo journalctl -u pastoral-health-report.service -n 30 --no-pager
+curl -i http://127.0.0.1:8082/api/v1/health
+```
+
+O timer executa uma nova coleta 30 segundos após a anterior terminar; os cinco
+containers são consultados em paralelo. A unidade acompanha o link `current`
+a cada execução, usando os scripts do último deploy validado. Cada deploy
+publica também uma amostra inicial antes do E2E. A migração para Desktop gera
+uma nova amostra no daemon de destino, sem reutilizar as métricas do Engine.
+
+`timestamp` marca o início da coleta. `snapshot.collectedAt` marca sua conclusão;
+`snapshot.ageSeconds` informa a idade, `maxAgeSeconds` é 180 e `stale` indica
+amostra vencida ou com data futura. Memória, CPU e disco são métricas periódicas;
+`readiness` consulta o backend com timeout de quatro segundos e compartilha a
+resposta por até cinco segundos entre solicitações concorrentes.
+
+HTTP 200 exige coleta íntegra, recente e readiness saudável. HTTP 503 preserva
+os dados disponíveis, define `status: error` e informa erros da coleta,
+`resource_snapshot_stale`, `resource_snapshot_unavailable` ou
+`readiness_unavailable`. Uma amostra ausente não gera métricas fictícias.
+`/health/live` interno permanece independente da coleta; os healthchecks do
+backend e do pool Traefik continuam usando a readiness original.
+
+`host.memory`, `host.disk` e `host.loadAverage` são do Ubuntu. `containers.*.stats`
+são do daemon selecionado; no Desktop o denominador de `MemUsage` é a memória
+disponível na VM (não os 16 GB do Ubuntu). `configuredMemoryLimitBytes: 0`
+significa ausência de limite explícito no container. `MemUsage` de Postgres é
+uso do container, não uma decomposição dos buffers internos do banco. Este
+endpoint público inclui metadados operacionais como caminho do socket e disco,
+mas não publica senhas, chaves ou variáveis de ambiente dos containers.
+
+Se o Desktop ou o coletor parar, o último relatório fica disponível e passa a
+503 após vencer. Reativar o Desktop e conferir o journal; o timer tenta outra
+vez automaticamente. Para uma coleta manual sem aguardar o timer:
+
+```bash
+sudo systemctl start pastoral-health-report.service
+```
+
+Validação: testes Node do contrato HTTP e falhas; testes Python do coletor e
+publicador; CI com imagem real, volume gravado atomicamente e leitura por UID
+1001, além dos testes de roteamento Traefik e runtime Desktop. A instalação do
+timer e o retorno público no Ubuntu requerem validação operacional após merge.
