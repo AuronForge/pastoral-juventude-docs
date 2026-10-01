@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.2 · Atualizado em: 01/10/2026.
+Versão: 1.3 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -111,6 +111,35 @@ A publicação de release é independente: `publish-image.yml` reage a tags
 Esse workflow não encadeia a CI como gate nem implanta produção; antes de criar
 uma tag, validar e aprovar a revisão pelo processo de release.
 As novas publicações de desenvolvimento não substituem esse fluxo.
+
+## Versionamento da API no gateway
+
+A configuração proposta em [infra #5](https://github.com/AuronForge/pastoral-juventude-infra/pull/5)
+declara cada versão suportada em um router específico do Traefik.
+Depois do merge e de uma nova implantação:
+
+| Entrada | Router/destino | Comportamento |
+| --- | --- | --- |
+| `/api/v1` e `/api/v1/...` | `backend-api-v1` → backend | Preservar caminho completo e query |
+| `/api` sem versão | Nenhum router de API | HTTP 404 do gateway |
+| `/api/v2/...` ou outra versão não declarada | Nenhum router de API | HTTP 404 do gateway |
+| `/` e rotas web fora de `/api` | frontend | Aplicação web |
+
+A regra da v1 combina caminho exato `/api/v1` e prefixo `/api/v1/`,
+evitando que `/api/v10` corresponda à v1. O frontend exclui o espaço de
+nomes da API, portanto não devolve a SPA para uma versão desconhecida.
+
+Para v2 ou futuras versões, implementar e testar o contrato no backend e
+adicionar um router explícito `backend-api-v2`, `backend-api-v3`, etc.
+Cada router pode apontar ao mesmo serviço quando o backend implementar
+ambas as versões, ou a serviços/containers separados. Não reescrever v2
+para v1 nem publicar uma versão ainda não implementada.
+
+Os arquivos `traefik/dynamic.development.yml` e `traefik/dynamic.yml`
+mantêm a política. A CI da infra testa roteamento com Traefik real e servidores
+HTTP de teste; isso valida o gateway, não os contratos funcionais da API.
+Uma alteração exclusivamente na infra exige solicitar um novo deploy após
+sua CI: o dispatch das aplicações é disparado pela publicação delas.
 
 ## Configuração e permissões
 
