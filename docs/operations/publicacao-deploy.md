@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.8 · Atualizado em: 01/10/2026.
+Versão: 1.9 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -248,6 +248,42 @@ ao retorno de uma implantação Desktop já aceita. O runbook define comandos
 e evidências. O runtime Traefik usa exclusivamente arquivo estático, com
 diretório dinâmico adaptado à montagem; a CI cobre essa combinação real,
 além dos testes de recusa e ordenação do preparo.
+
+## Evidência da migração para Docker Desktop — 01/10/2026
+
+Às 19:47 BRT, o operador confirmou que a nova tentativa deu certo e forneceu
+uma captura do Docker Desktop mostrando o projeto `pastoral-dev` em execução.
+Isso confirma a visibilidade desejada na interface e a execução do projeto
+no daemon Desktop. A captura mostra o grupo recolhido; não comprova sozinha
+o estado individual de cada container, health público ou integridade dos dados.
+
+A revisão preparada no Engine foi `839a2b2de4d8252f3eb5f0d992a667cd2234290e`,
+com [deploy 36936154002](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36936154002)
+aprovado, incluindo E2E. Esse run foi anterior à migração; não é evidência de
+um deploy automático executado no Desktop.
+
+Ocorrências corrigidas:
+
+- [Infra #10](https://github.com/AuronForge/pastoral-juventude-infra/pull/10):
+  impedir cópia do overlay para ele mesmo ao usar o script via current.
+- [Infra #11](https://github.com/AuronForge/pastoral-juventude-infra/pull/11):
+  adaptar o provider dinâmico no arquivo estático do Traefik; reproduzir a
+  montagem/comando Desktop em CI e preparar nova tentativa com arquivos
+  dos volumes parados antes de liberar seus nomes no destino.
+
+A tentativa anterior falhou no smoke do frontend, com os dois checks do backend
+aprovados, e reiniciou os cinco serviços do Engine como saudáveis, conforme
+captura do terminal do operador. A configuração defeituosa foi reproduzida
+na [CI 36935274188](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36935274188);
+a revisão corrigida passou na
+[CI 36935635798](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36935635798).
+
+Próximas comprovações operacionais: executar o diagnóstico no Ubuntu, conferir
+dockerHost e estado individual dos serviços, testar o health público, executar
+novo deploy pelo fluxo automático já no Desktop e verificar acesso após
+reiniciar Desktop/Ubuntu. Os logs completos da tentativa final, a pasta exata
+de evidências e o relatório de recursos ainda não foram fornecidos nesta
+validação. Preservar backups e os volumes de origem durante essas verificações.
 
 ## Configuração e permissões
 
