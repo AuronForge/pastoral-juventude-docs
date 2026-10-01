@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.7 · Atualizado em: 01/10/2026.
+Versão: 1.8 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -239,6 +239,15 @@ no Ubuntu real. Dados de origem ficam antigos após a transferência: depois
 de novas escritas, retorno requer preservar/restaurar os dados atualizados.
 O novo deploy também corrige a cópia do script health-development.py à release
 e registra resources.json nas evidências.
+
+Após uma migração interrompida antes da transferência de responsabilidade,
+o script prepare-desktop-retry.sh pode preparar nova tentativa: exige origem
+pronta, candidata parada e docker-host ainda no Engine; arquiva os volumes
+da candidata e somente então libera seus nomes no Desktop. Não se aplica
+ao retorno de uma implantação Desktop já aceita. O runbook define comandos
+e evidências. O runtime Traefik usa exclusivamente arquivo estático, com
+diretório dinâmico adaptado à montagem; a CI cobre essa combinação real,
+além dos testes de recusa e ordenação do preparo.
 
 ## Configuração e permissões
 
