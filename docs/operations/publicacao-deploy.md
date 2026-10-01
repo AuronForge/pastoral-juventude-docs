@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.3 · Atualizado em: 01/10/2026.
+Versão: 1.4 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -140,6 +140,55 @@ mantêm a política. A CI da infra testa roteamento com Traefik real e servidore
 HTTP de teste; isso valida o gateway, não os contratos funcionais da API.
 Uma alteração exclusivamente na infra exige solicitar um novo deploy após
 sua CI: o dispatch das aplicações é disparado pela publicação delas.
+
+## Publicação do backend por túnel e frontend no Vercel
+
+A topologia pública definida para desenvolvimento é frontend no Vercel e
+backend no Ubuntu, publicado por Cloudflare Tunnel. O túnel deve apontar
+somente à entrada de API do Traefik, não à entrada web que atende a SPA.
+
+[Infra #6](https://github.com/AuronForge/pastoral-juventude-infra/pull/6)
+introduz `api-public`, com porta 8082 no container e publicação apenas em
+`127.0.0.1:${DEV_API_TUNNEL_PORT:-8082}` no host. Após merge e novo deploy:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8082
+```
+
+| Entrada pública do túnel | Destino |
+| --- | --- |
+| `/api/v1` e `/api/v1/...` | Backend v1 |
+| `/`, páginas web, healthchecks e versões não declaradas | HTTP 404 |
+
+O frontend Docker continua como destino web interno e parte da suíte smoke;
+isso não representa publicação no Vercel nem validação do frontend hospedado lá.
+A CI da infra testa a entrada exclusiva da API, enquanto o E2E atual permanece
+na rede interna. Validação externa e testes do frontend Vercel são uma próxima etapa.
+
+Quick Tunnel não exige domínio e fornece URL HTTPS temporária. Encerrar o
+processo encerra o acesso; iniciar outro túnel gera um hostname diferente.
+O Vercel precisará ter seu destino atualizado quando a URL mudar. Para acesso
+contínuo com endereço fixo, migrar para domínio e túnel nomeado.
+
+A configuração `DEV_CORS_ORIGINS` aceita origens exatas separadas por vírgula
+para clientes que chamem diretamente a API. Configurar somente domínios
+aprovados e o localhost necessário. `DEV_PUBLIC_URL` não substitui essa
+allowlist quando frontend e API estão em domínios diferentes.
+
+Para o frontend no Vercel, recomenda-se encaminhar `/api/:path*` ao destino
+externo `https://URL-DO-TUNEL/api/:path*` por rewrite, preservando a versão.
+Assim o navegador chama `/api/v1/...` no domínio do frontend. O proxy do Vite
+serve somente ao desenvolvimento local.
+
+O backend atual emite refresh cookie HttpOnly com `SameSite=Lax`; somente
+habilitar CORS não torna esse cookie utilizável em chamadas diretas entre sites.
+O fluxo por proxy mantém a mesma origem no navegador. Habilitar
+`COOKIE_SECURE=true` para o uso HTTPS e validar login/cookies no navegador
+quando houver integração funcional. Não configurar URLs reais de Vercel/túnel
+antes de obtê-las nem tratar autenticação como validada nesta entrega.
+
+Fontes: [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
+e [rewrites externos do Vercel](https://vercel.com/docs/routing/rewrites).
 
 ## Configuração e permissões
 
