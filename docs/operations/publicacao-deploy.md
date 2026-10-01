@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.0 · Atualizado em: 01/10/2026.
+Versão: 1.1 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -12,8 +12,10 @@ Os PRs [backend #9](https://github.com/AuronForge/pastoral-juventude-backend/pul
 [frontend #15](https://github.com/AuronForge/pastoral-juventude-frontend/pull/15),
 [E2E #2](https://github.com/AuronForge/pastoral-juventude-e2e/pull/2) e
 [infra #2](https://github.com/AuronForge/pastoral-juventude-infra/pull/2) foram
-mergeados. Isso disponibiliza a implementação; não comprova que o Ubuntu,
-runner, secrets e variáveis já estejam configurados ou que o primeiro deploy tenha passado.
+mergeados. O primeiro deploy real no Ubuntu foi concluído em 01/10/2026,
+com PostgreSQL, Redis, backend, frontend e Traefik prontos e três smoke tests
+aprovados. A evidência e as revisões estão registradas abaixo. A ativação do
+dispatch automático nas aplicações é uma etapa separada.
 
 | Ambiente        | Branch      | Comportamento nesta entrega                                             |
 | --------------- | ----------- | ----------------------------------------------------------------------- |
@@ -77,7 +79,7 @@ acompanhar ambos no GitHub Actions.
 | Backend CI     | Formatação, lint, Prisma, testes/cobertura mínima de 85%, build, consistência da documentação gerada, migrations em banco vazio |
 | Backend Docker | Build da API, carregamento de Argon2/Prisma, build e CLI da imagem de migrations                                                |
 | Frontend CI    | Formatação, lint, testes/cobertura mínima de 85%, build da aplicação e Storybook, build Docker                                  |
-| Infra CI       | ShellCheck, Compose existente e de desenvolvimento, configurações de observabilidade e builds customizados                      |
+| Infra CI       | ShellCheck, Compose existente e de desenvolvimento, configurações de observabilidade, builds e teste real de inicialização/reinício do Redis                      |
 | E2E CI         | Gates estáticos e build da imagem com inicialização do Chromium sem privilégios                                                 |
 | Deploy         | Readiness dos serviços, readiness da API e smoke Playwright na rede interna                                                     |
 
@@ -172,6 +174,74 @@ A infra exige o SHA atual da `develop` do componente, CI de push aprovada,
 publicação aprovada correspondente, CI de push da própria infra aprovada e
 existência do SHA E2E informado. A aprovação dessa revisão E2E é responsabilidade
 de quem configura a variável; a validação atual não verifica sua CI automaticamente.
+
+## Ativar e comprovar o deploy automático
+
+Após o primeiro deploy manual validado:
+
+1. Criar um personal access token **fine-grained**, com resource owner
+   `AuronForge`, expiração definida (por exemplo, 30 dias), acesso somente ao
+   repositório `pastoral-juventude-infra` e permissão de repositório
+   **Actions: Read and write**. Metadata de leitura é incluído pelo GitHub.
+   Se a organização exigir aprovação, aprovar antes de testar.
+2. Salvar esse token como **Repository secret** `INFRA_DISPATCH_TOKEN` no backend
+   e no frontend. Não usar Environment secret: o job de publicação não associa
+   um Environment. Não reutilizar o token de leitura do GHCR para esse fim.
+3. Nos dois repositórios, criar a **Repository variable** `DEV_AUTO_DEPLOY`
+   com valor exato `true`, somente depois de salvar o secret.
+4. Executar uma nova CI de push da `develop`, por merge ou reexecução de uma CI
+   de push bem-sucedida do HEAD atual. A conclusão dispara a publicação.
+5. Conferir `Request development deployment` na publicação e a nova execução
+   `Deploy development` na infra. Confirmar SHA, componente, healthchecks, três
+   smoke tests e artefatos. Validar backend e frontend separadamente.
+6. Para suspender novas solicitações automáticas, definir `DEV_AUTO_DEPLOY=false`
+   nas aplicações. Isso não cancela deploys já solicitados nem altera containers.
+   Planejar a renovação do token antes da expiração.
+
+O token de dispatch somente solicita a implantação; a infra continua validando
+a origem e os checks antes de usar o runner. Publicação aprovada sem deploy
+concluído não comprova a entrega. Não habilitar produção ou homologação por
+essas variáveis.
+
+## Evidência do primeiro deploy validado — 01/10/2026
+
+[Execução 36895862793](https://github.com/AuronForge/pastoral-juventude-infra/actions/runs/36895862793),
+na tentativa concluída às 14:11 BRT, após ajustar a porta do host. O job
+`validate` e o job `deploy` passaram.
+
+| Item | Revisão ou resultado |
+| --- | --- |
+| Infra | `d55ab698933537943c56e85329c9f39c5e501f01` |
+| Backend e migrations | `d25052401f284fef01f7991fa8179753c3378fff` |
+| Frontend | `27b8f16c98b0c5c08d0f0d88ee620e667ea3456e` |
+| E2E | `0acd28590c6e05a3a7d701c22d86981f668002c9` |
+| Migrations | 21 aplicadas na primeira tentativa; reexecução bem-sucedida |
+| Smoke Playwright | Página inicial, backend vivo e backend pronto: 3 aprovados |
+| Release no host | `/opt/pastoral/dev/releases/36895862793-20261001T170716Z` |
+| Relatórios no host | `/opt/pastoral/dev/reports/36895862793-20261001T170716Z` |
+| Artefato GitHub | `development-deployment-36895862793`, retenção de 14 dias |
+| Porta de desenvolvimento no host | `DEV_HTTP_PORT=8081` |
+
+O runner está instalado em `/opt/pastoral/runner`, executa como
+`pastoral-runner` e está registrado como `eduardo-marques-server`, no grupo
+`pastoral-dev`, com as labels exigidas pelo workflow.
+
+Ocorrências resolvidas durante o bootstrap:
+
+- `DEV_E2E_REF` indisponível no validate: configurado como Repository variable.
+- HTTP 404 ao consultar origem: token `SOURCE_READ_TOKEN` configurado no
+  repositório infra para leitura de Contents/Actions nas origens e na infra.
+- Redis unhealthy: [infra #4](https://github.com/AuronForge/pastoral-juventude-infra/pull/4)
+  corrigiu proprietário da configuração privada e recriação no reinício;
+  CI passou com teste real em Docker.
+- Conflito da porta 8080 com `aquatrack-traefik`: alterados
+  `DEV_HTTP_PORT` e a porta de `DEV_PUBLIC_URL` no arquivo do host para 8081.
+  O serviço Aquatrack permaneceu em execução.
+
+As revisões acima documentam esse deploy, não os HEADs de entregas futuras.
+O resultado comprova a infraestrutura e o smoke atual; login funcional,
+observabilidade completa e deploy automático ainda exigem suas validações
+específicas.
 
 ## Execução no Ubuntu e evidências
 
