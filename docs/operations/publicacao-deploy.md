@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.4 · Atualizado em: 01/10/2026.
+Versão: 1.5 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -158,7 +158,7 @@ cloudflared tunnel --url http://127.0.0.1:8082
 | Entrada pública do túnel | Destino |
 | --- | --- |
 | `/api/v1` e `/api/v1/...` | Backend v1 |
-| `/`, páginas web, healthchecks e versões não declaradas | HTTP 404 |
+| `/`, páginas web, healthchecks internos e versões não declaradas | HTTP 404 |
 
 O frontend Docker continua como destino web interno e parte da suíte smoke;
 isso não representa publicação no Vercel nem validação do frontend hospedado lá.
@@ -189,6 +189,32 @@ antes de obtê-las nem tratar autenticação como validada nesta entrega.
 
 Fontes: [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
 e [rewrites externos do Vercel](https://vercel.com/docs/routing/rewrites).
+
+## Healthcheck público versionado
+
+[Infra #7](https://github.com/AuronForge/pastoral-juventude-infra/pull/7)
+adiciona `GET /api/v1/health` somente na entrada `api-public`.
+Depois do merge e novo deploy, a URL do túnel seguida desse caminho
+responde HTTP 200 com `{"status":"ok"}` quando a API estiver disponível.
+A resposta tem `Cache-Control: no-store` e não requer autenticação.
+
+O Traefik faz reescrita exata para o endpoint interno `/health/live`,
+sem expor os endpoints técnicos diretamente nem divulgar o estado individual
+das dependências. `/health/ready` continua sendo utilizado internamente
+pelo load balancer e pelo smoke E2E. Sem backend saudável, o gateway pode
+retornar 503; falhas do túnel/origem podem retornar 502. Esse check público
+detecta disponibilidade, mas não identifica a causa de uma falha.
+
+Exemplo de verificação no Ubuntu:
+
+```bash
+curl -i http://127.0.0.1:8082/api/v1/health
+```
+
+Para verificação externa, usar `https://URL-ATUAL-DO-TUNEL/api/v1/health`.
+A CI da infra valida reescrita, cabeçalho de cache e bloqueio das rotas técnicas
+com Traefik real. Uma URL temporária não deve ser cadastrada como monitor
+permanente antes de definir hostname estável.
 
 ## Configuração e permissões
 
