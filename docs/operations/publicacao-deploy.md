@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.6 · Atualizado em: 01/10/2026.
+Versão: 1.7 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -216,6 +216,29 @@ A CI testa o coletor com Docker simulado e o roteamento HTTP 200/503 com
 Traefik real. Após o deploy, validar o relatório no host real e a URL atual
 do túnel. O [runbook](https://github.com/AuronForge/pastoral-juventude-infra/blob/develop/docs/DESENVOLVIMENTO.md)
 define os campos, unidades, limites e comandos.
+
+## Docker Desktop no Ubuntu
+
+Por solicitação do responsável, foi preparada migração do projeto pastoral-dev
+do Engine para Docker Desktop, para exibição na interface gráfica. São daemons
+e armazenamentos distintos; mudar o contexto não transfere os volumes.
+
+O [runbook Desktop](https://github.com/AuronForge/pastoral-juventude-infra/blob/develop/docs/DOCKER-DESKTOP.md)
+define instalação da ACL persistente, novo deploy ainda no Engine, preflight,
+janela de indisponibilidade, cópia de imagens/volumes com backup e smoke antes
+de reabrir as portas públicas. Não migra Aquatrack nem desabilita o Engine.
+O Desktop precisa permanecer ativo.
+
+O arquivo /opt/pastoral/dev/docker-host seleciona explicitamente o daemon
+para login GHCR, deploy e diagnóstico. Runtime/secrets usam volumes internos
+no Desktop; E2E executa como UID 1001 e copia relatórios sem bind mounts.
+Falha de acesso não provoca fallback para outro daemon.
+
+A CI valida a portabilidade em Engine; a migração Desktop exige comprovação
+no Ubuntu real. Dados de origem ficam antigos após a transferência: depois
+de novas escritas, retorno requer preservar/restaurar os dados atualizados.
+O novo deploy também corrige a cópia do script health-development.py à release
+e registra resources.json nas evidências.
 
 ## Configuração e permissões
 
