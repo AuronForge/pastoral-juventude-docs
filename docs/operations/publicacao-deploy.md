@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.5 · Atualizado em: 01/10/2026.
+Versão: 1.6 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -190,31 +190,32 @@ antes de obtê-las nem tratar autenticação como validada nesta entrega.
 Fontes: [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
 e [rewrites externos do Vercel](https://vercel.com/docs/routing/rewrites).
 
-## Healthcheck público versionado
+## Saúde e diagnóstico de recursos
 
-[Infra #7](https://github.com/AuronForge/pastoral-juventude-infra/pull/7)
-adiciona `GET /api/v1/health` somente na entrada `api-public`.
-Depois do merge e novo deploy, a URL do túnel seguida desse caminho
-responde HTTP 200 com `{"status":"ok"}` quando a API estiver disponível.
-A resposta tem `Cache-Control: no-store` e não requer autenticação.
+`GET /api/v1/health` na entrada `api-public` passa a usar o readiness
+interno: HTTP 200 com `{"status":"ok","checks":{"database":"up","cache":"up"}}`,
+ou HTTP 503 com a dependência em `down`. A resposta continua sem cache.
+O router usa um serviço de diagnóstico próprio sem remover o backend por
+readiness, permitindo informar a falha de dependência. Backend inacessível
+ou falha do túnel pode gerar 502. O liveness interno permanece mínimo.
 
-O Traefik faz reescrita exata para o endpoint interno `/health/live`,
-sem expor os endpoints técnicos diretamente nem divulgar o estado individual
-das dependências. `/health/ready` continua sendo utilizado internamente
-pelo load balancer e pelo smoke E2E. Sem backend saudável, o gateway pode
-retornar 503; falhas do túnel/origem podem retornar 502. Esse check público
-detecta disponibilidade, mas não identifica a causa de uma falha.
-
-Exemplo de verificação no Ubuntu:
+RAM do Ubuntu, swap, carga, disco, uptime, memória/CPU/I/O dos containers,
+estado Docker, reinícios e OOM são coletados localmente:
 
 ```bash
-curl -i http://127.0.0.1:8082/api/v1/health
+sudo -u pastoral-runner python3 /opt/pastoral/dev/current/scripts/health-development.py
 ```
 
-Para verificação externa, usar `https://URL-ATUAL-DO-TUNEL/api/v1/health`.
-A CI da infra valida reescrita, cabeçalho de cache e bloqueio das rotas técnicas
-com Traefik real. Uma URL temporária não deve ser cadastrada como monitor
-permanente antes de definir hostname estável.
+Requer novo deploy da infra, Python 3 e Docker local no Ubuntu. A memória
+do PostgreSQL representa o container inteiro; não representa apenas
+`shared_buffers` nem tamanho em disco. Os detalhes são locais, sem endpoint
+público adicional. O relatório retorna código 1 em coleta parcial/falha e
+mantém os dados disponíveis. Não configura alertas ou monitoramento contínuo.
+
+A CI testa o coletor com Docker simulado e o roteamento HTTP 200/503 com
+Traefik real. Após o deploy, validar o relatório no host real e a URL atual
+do túnel. O [runbook](https://github.com/AuronForge/pastoral-juventude-infra/blob/develop/docs/DESENVOLVIMENTO.md)
+define os campos, unidades, limites e comandos.
 
 ## Configuração e permissões
 
