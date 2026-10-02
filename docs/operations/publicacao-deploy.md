@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.11 · Atualizado em: 01/10/2026.
+Versão: 1.12 · Atualizado em: 02/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -622,5 +622,38 @@ deploys, definir `VERCEL_DEV_DEPLOY=false` e cancelar execuções ativas.
 
 Procedimento completo e referências oficiais em
 [frontend/docs/VERCEL-DESENVOLVIMENTO.md](https://github.com/AuronForge/pastoral-juventude-frontend/blob/develop/docs/VERCEL-DESENVOLVIMENTO.md).
-A CI de PR valida scripts, empacotamento e gates existentes; criação do projeto,
-credenciais, primeiro deployment e acesso público ainda requerem comprovação.
+A execução [CI 37015490800](https://github.com/AuronForge/pastoral-juventude-frontend/actions/runs/37015490800)
+concluiu publicação, smoke e promoção em 02/10/2026. O domínio
+https://pastoral-juventude-frontend.vercel.app respondeu HTTP 200 em `/`, `/login`
+e `/api/v1/health`, com banco/cache disponíveis e snapshot atualizado. A autenticação
+real de um usuário pelo frontend ainda exige validação. URLs candidatas devem
+estar acessíveis ao smoke; Vercel Authentication causou redirecionamento ao login
+da Vercel e bloqueou a tentativa anterior.
+
+
+## Massa de autenticação em desenvolvimento
+
+O [backend #12](https://github.com/AuronForge/pastoral-juventude-backend/pull/12)
+adiciona criação explícita de duas contas exclusivas em `@regressao.invalid`:
+`normal@regressao.invalid` para login normal e
+`troca-obrigatoria@regressao.invalid` para primeiro acesso. Ambas usam o papel
+JOVEM. O operador define senhas exclusivas em arquivo privado no Ubuntu; não há
+senha padrão, endpoint de seed ou criação automática em cada deploy.
+
+O comando `development:seed` aceita somente desenvolvimento, com confirmação
+`CRIAR_MASSA_DESENVOLVIMENTO`, usa a pastoral ativa existente e cria estrutura
+fictícia somente quando necessário. Repetir preserva as contas; colisões abortam
+a transação. As senhas são Argon2id e a criação é auditada. Para repetir primeiro
+acesso, o reset separado `regression:reset` restaura as duas contas e suas sessões;
+a senha temporária vence em uma hora.
+
+A imagem operacional `regression-tools` é construída separadamente da aplicação
+e executada no daemon indicado por `/opt/pastoral/dev/docker-host`, na rede interna
+de desenvolvimento, lendo os secrets existentes. Procedimento completo:
+[backend/docs/MASSA-DESENVOLVIMENTO.md](https://github.com/AuronForge/pastoral-juventude-backend/blob/develop/docs/MASSA-DESENVOLVIMENTO.md).
+
+A CI verifica o seed em PostgreSQL descartável. A criação no banco Ubuntu depende
+do merge e da execução manual do operador; não foi executada durante a preparação
+dos PRs. Depois, validar login pelo domínio Vercel, cookies em HTTPS e troca
+obrigatória. Na implementação atual, access token fica em memória e recarregar
+exige novo login; restauração automática de sessão ainda não está implementada.
