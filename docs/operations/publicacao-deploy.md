@@ -1,6 +1,6 @@
 # Publicação e deploy — MVP Pastoral da Juventude
 
-Versão: 1.10 · Atualizado em: 01/10/2026.
+Versão: 1.11 · Atualizado em: 01/10/2026.
 
 Este documento centraliza o fluxo técnico implementado nos repositórios backend,
 frontend, infra e E2E. Os procedimentos específicos do host permanecem no
@@ -583,3 +583,44 @@ Validação: testes Node do contrato HTTP e falhas; testes Python do coletor e
 publicador; CI com imagem real, volume gravado atomicamente e leitura por UID
 1001, além dos testes de roteamento Traefik e runtime Desktop. A instalação do
 timer e o retorno público no Ubuntu requerem validação operacional após merge.
+
+
+## Frontend público de desenvolvimento na Vercel
+
+Configuração proposta no [Frontend #18](https://github.com/AuronForge/pastoral-juventude-frontend/pull/18).
+A branch `develop` publica em um projeto exclusivo de desenvolvimento na Vercel,
+usando o build aprovado pela CI. O backend permanece no Ubuntu, acessível por túnel
+HTTPS e por proxy `/api` no domínio do frontend. Traefik continua controlando as
+versões da API. O frontend Docker permanece para o smoke interno do ambiente.
+
+O workflow publica candidato com `--prod --skip-domain`, verifica aplicação,
+`/login` e `/api/v1/health`, e só então promove o domínio estável do projeto dev.
+O target `production` é da Vercel dentro desse projeto de desenvolvimento, não
+uma promoção de `develop` para a produção da aplicação. Não há deploy de `main`
+ou de PRs neste fluxo. Deploys Git nativos ficam desativados; o Actions entrega
+Build Output API v3 com CLI fixada em 59.19.1.
+
+Bootstrap: criar o projeto `pastoral-juventude-frontend-dev`, permitir acesso público
+às URLs candidatas, configurar o Environment GitHub `vercel-development` restrito
+a `develop`, informar `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `BACKEND_PUBLIC_ORIGIN`
+e secret `VERCEL_TOKEN`, e ativar a repository variable `VERCEL_DEV_DEPLOY=true`
+somente quando o túnel e o health do Ubuntu estiverem saudáveis. A instalação da
+integração Vercel no ChatGPT foi confirmada pelo usuário em 02/10/2026; não fornece
+automaticamente o secret de CI. Não registrar tokens em repositório ou conversa.
+
+Usar a mesma origem no cliente: não configurar `VITE_API_BASE_URL` com o domínio
+do túnel. No backend, usar `COOKIE_SECURE=true` e acrescentar o domínio estável do
+frontend a `DEV_CORS_ORIGINS`, aplicando pelo deploy. Login real, cookie HttpOnly
+e chamadas autenticadas exigem validação operacional após a primeira publicação.
+
+Mudança de URL do Quick Tunnel exige atualizar `BACKEND_PUBLIC_ORIGIN` e executar
+novamente a CI do último push de `develop`, ou um novo push. Smoke com 503, 401/403
+ou erro de túnel impede promoção. Evidências ficam nos artifacts de Actions:
+`frontend-dist-<SHA>` por sete dias e `vercel-development-<SHA>` por 14 dias.
+Rollback do projeto frontend não reverte backend ou banco. Para interromper novos
+deploys, definir `VERCEL_DEV_DEPLOY=false` e cancelar execuções ativas.
+
+Procedimento completo e referências oficiais em
+[frontend/docs/VERCEL-DESENVOLVIMENTO.md](https://github.com/AuronForge/pastoral-juventude-frontend/blob/develop/docs/VERCEL-DESENVOLVIMENTO.md).
+A CI de PR valida scripts, empacotamento e gates existentes; criação do projeto,
+credenciais, primeiro deployment e acesso público ainda requerem comprovação.
