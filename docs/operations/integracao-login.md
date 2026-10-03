@@ -6,7 +6,7 @@ A Jornada de Login conecta RES-001 e a troca obrigatória de RES-002 ao frontend
 
 O Login envia somente email e senha para POST /api/v1/autenticacao/login. O frontend normaliza o e-mail com trim e lowercase. Senhas e tokens não são gravados em localStorage ou sessionStorage. O Access Token e o token TROCA_SENHA permanecem em memória; o cookie de Refresh Token é gerenciado pelo navegador com credentials include.
 
-Continuar conectado permanece desabilitado. O contrato conserva Access Token de 900 segundos e sessão absoluta de uma hora. Recuperação de senha, logout, renovação explícita e troca voluntária não integram esta entrega. Ao recarregar a aplicação, o frontend retorna ao Login, pois não há reconstrução de sessão neste escopo.
+Continuar conectado permanece desabilitado. O contrato conserva Access Token de 900 segundos e sessão absoluta de uma hora. A restauração após recarregar a aplicação usa RES-106, conforme o guia restauracao-sessao.md. Recuperação de senha, logout e troca voluntária na interface permanecem fora desta entrega.
 
 A composição visual usa os frames aprovados do Figma e BrandLockup oficial. Login é acessível em /login. A rota / é protegida e conserva a página inicial existente; esta entrega não implementa um novo dashboard. O token TROCA_SENHA dá acesso somente a /alterar-senha. A expiração local usa expiresIn da API, sem ampliar a validade ao navegar entre rotas. O backend continua responsável por validar tokens, sessão e permissões em cada recurso.
 
@@ -49,3 +49,10 @@ E2E: https://github.com/AuronForge/pastoral-juventude-e2e
 Figma Login: https://www.figma.com/design/Q3XWkh0oPSxbEM5o3NnAXR?node-id=86-433
 
 Figma troca obrigatória: https://www.figma.com/design/Q3XWkh0oPSxbEM5o3NnAXR?node-id=87-636
+
+
+## Validação funcional em desenvolvimento
+
+Em 02/10/2026, o operador confirmou login normal pelo frontend Vercel e backend Ubuntu. Em 03/10/2026, confirmou a troca obrigatória e o login com senha definitiva após reset explícito da massa e deploy 37124243179. Esse deploy passou na etapa de E2E interno e publicou evidências. A CI do backend 37123894247 passou no commit 5be21940bf7c5bde7a41e0dc0b52807c0d7c7e79.
+
+A confirmação do operador foi “Funcionou perfeitamente!”. O retorno HTTP 204 era o esperado no roteiro; não foi fornecida uma captura independente do status. Essa evidência valida o fluxo anterior à restauração de sessão e não comprova a implantação de RES-106.

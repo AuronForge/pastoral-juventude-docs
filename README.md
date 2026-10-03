@@ -21,3 +21,7 @@ As alterações devem ser realizadas preferencialmente por branch e Pull Request
 ## Jornada de Login
 
 Consulte [a integração da jornada](docs/operations/integracao-login.md) para decisões de persistência, Retry-After, troca obrigatória e validação entre repositórios. A versão [DOCX](docs/operations/integracao-login.docx) contém o mesmo texto.
+
+Consulte [a restauração de sessão](docs/operations/restauracao-sessao.md) e sua
+[versão DOCX](docs/operations/restauracao-sessao.docx) para o comportamento no reload,
+limites de refresh e ordem de integração.
