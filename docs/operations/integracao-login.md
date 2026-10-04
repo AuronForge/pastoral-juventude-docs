@@ -6,7 +6,7 @@ A Jornada de Login conecta RES-001 e a troca obrigatória de RES-002 ao frontend
 
 O Login envia somente email e senha para POST /api/v1/autenticacao/login. O frontend normaliza o e-mail com trim e lowercase. Senhas e tokens não são gravados em localStorage ou sessionStorage. O Access Token e o token TROCA_SENHA permanecem em memória; o cookie de Refresh Token é gerenciado pelo navegador com credentials include.
 
-Continuar conectado permanece desabilitado. O contrato conserva Access Token de 900 segundos e sessão absoluta de uma hora. A restauração após recarregar a aplicação usa RES-106, conforme o guia restauracao-sessao.md. Recuperação de senha, logout e troca voluntária na interface permanecem fora desta entrega.
+O login não oferece a opção de continuar conectado. O contrato conserva Access Token de 900 segundos e sessão absoluta de uma hora. A restauração após recarregar a aplicação usa RES-106, conforme o guia restauracao-sessao.md. Recuperação de senha, logout e troca voluntária na interface permanecem fora desta entrega.
 
 A composição visual usa os frames aprovados do Figma e BrandLockup oficial. Login é acessível em /login. A rota / é protegida e conserva a página inicial existente; esta entrega não implementa um novo dashboard. O token TROCA_SENHA dá acesso somente a /alterar-senha. A expiração local usa expiresIn da API, sem ampliar a validade ao navegar entre rotas. O backend continua responsável por validar tokens, sessão e permissões em cada recurso.
 
