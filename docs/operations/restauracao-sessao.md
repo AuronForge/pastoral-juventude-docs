@@ -18,7 +18,7 @@ Sucesso devolve o acesso à rota solicitada. Cookie ausente retorna 400 TOKEN_RE
 
 Falhas de rede, origem não permitida e indisponibilidade mostram um alerta com ação Tentar novamente. Não há loop de retry. O backend preserva o cookie em falhas de serviço ou rejeição de origem. A tentativa de renovar depois da terceira renovação invalida a sessão com REFRESH_LIMITE_ATINGIDO e exige novo login.
 
-O token TROCA_SENHA continua restrito à memória e não pode restaurar sessão. Recarregar a página durante a troca obrigatória exige reiniciar o login temporário. Não há renovação periódica, logout na interface ou habilitação de Continuar conectado nesta entrega. A expiração do Access Token durante uma página aberta conserva o comportamento existente de retorno ao login.
+O token TROCA_SENHA continua restrito à memória e não pode restaurar sessão. Recarregar a página durante a troca obrigatória exige reiniciar o login temporário. Não há renovação periódica, logout na interface nesta entrega. O login não oferece a opção de continuar conectado. A expiração do Access Token durante uma página aberta conserva o comportamento existente de retorno ao login.
 
 ## Validação e integração
 
