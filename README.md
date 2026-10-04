@@ -25,3 +25,9 @@ Consulte [a integração da jornada](docs/operations/integracao-login.md) para d
 Consulte [a restauração de sessão](docs/operations/restauracao-sessao.md) e sua
 [versão DOCX](docs/operations/restauracao-sessao.docx) para o comportamento no reload,
 limites de refresh e ordem de integração.
+
+## Recuperação de senha
+
+Consulte [a integração da recuperação](docs/operations/recuperacao-senha.md) e sua
+[versão DOCX](docs/operations/recuperacao-senha.docx) para RES-003, Journey002,
+segurança, ordem dos merges e validação pública.
